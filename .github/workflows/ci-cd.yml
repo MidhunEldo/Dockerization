@@ -9,28 +9,40 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
+
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
         python-version: '3.9'
+
     - name: Install system dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y python3-dev python3-venv
+
     - name: Set up virtual environment and install dependencies
       run: |
         python3 -m venv venv
         source venv/bin/activate
         pip install --upgrade pip
-        pip install -r requirements.txt
+        # Check if requirements.txt exists
+        if [ -f requirements.txt ]; then
+          pip install -r requirements.txt
+        else
+          echo "requirements.txt file not found"
+          exit 1
+        fi
+
     - name: Run tests
       run: |
         source venv/bin/activate
         python manage.py test
+
     - name: Set up SSH
       uses: webfactory/ssh-agent@v0.5.4
       with:
         ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
     - name: Deploy and Restart Application
       run: |
         ssh -o StrictHostKeyChecking=no ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} << 'EOF'
@@ -38,9 +50,14 @@ jobs:
           # Set up a virtual environment and activate it
           python3 -m venv /home/ubuntu/Task/Task10/venv
           source /home/ubuntu/Task/Task10/venv/bin/activate
-          # Install dependencies
-          pip install --upgrade pip
-          pip install -r /home/ubuntu/Task/Task10/requirements.txt
+          # Check if requirements.txt exists
+          if [ -f /home/ubuntu/Task/Task10/requirements.txt ]; then
+            pip install --upgrade pip
+            pip install -r /home/ubuntu/Task/Task10/requirements.txt
+          else
+            echo "requirements.txt file not found on remote server"
+            exit 1
+          fi
           # Apply database migrations
           python /home/ubuntu/Task/Task10/manage.py migrate
           # Collect static files
